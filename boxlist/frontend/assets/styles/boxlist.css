@@ -1,0 +1,19 @@
+h2.container-list-head span.subtitle {
+  font-size: 80%;
+  display: block;
+  line-height: 1em;
+}
+
+.boxlist-loading-notice {
+  width: 300px;
+  height: 2em;
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  margin-left: -150px;
+  text-align: center;
+  padding-top: 1em;
+  opacity: 95;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.6);
+  z-index: 10;
+}

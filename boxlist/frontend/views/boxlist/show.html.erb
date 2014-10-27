@@ -1,0 +1,24 @@
+<%= setup_context :object => @resource %>
+
+<div class="row-fluid">
+  <div class="span12">
+    <h2 class="container-list-head">
+      <span class="subtitle">Box list for</span>
+      <%= @resource.title %>
+
+      <a href="/resources/<%= @resource_id %>" class="btn btn-small pull-right">Resource view</a>
+    </h2>
+
+
+
+    <div id="box-list-container" data-resource-id="<%= @resource_id %>">
+
+      <div class="alert alert-info boxlist-loading-notice with-hide-alert">
+        Loading...
+      </div>
+
+    </div>
+
+
+  </div>
+</div>

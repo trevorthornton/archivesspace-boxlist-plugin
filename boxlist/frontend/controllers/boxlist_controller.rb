@@ -1,19 +1,40 @@
 class BoxlistController < ApplicationController
 
-  set_access_control  "view_repository" => [:show]
+  require 'active_support/inflector'
+
+  set_access_control  "view_repository" => [:show, :data]
 
   def show
-    @resource_uri = params[:resource_uri]
-    @tree_response = JSONModel::HTTP::get_json("/#{@uri}/tree")
-    @list = {}
-    tree = JSON.parse(tree_response.body)
-    resource_children = tree['children']
-    process_children(resource_children)
-    consolidate_list(@list)
-    @rows = rows_from_list
-    render text: @rows.inspect
+    if params[:resource_id]
+      @resource_id = params[:resource_id]
+      @resource = JSONModel(:resource).find(@resource_id)
+      # @resource_uri = @resource.uri
+      # @tree = JSONModel::HTTP::get_json("/#{@resource_uri}/tree")
+      # @list = {}
+      # # tree = JSON.parse(@tree_response.body)
+      # resource_children = @tree['children']
+      # process_children(resource_children)
+      # consolidate_list(@list)
+      # @rows = rows_from_list
+      render
+    end
   end
 
+
+  def data
+    if params[:resource_id]
+      @resource = JSONModel(:resource).find(params[:resource_id])
+      @resource_uri = @resource.uri
+      @tree = JSONModel::HTTP::get_json("/#{@resource_uri}/tree")
+      @list = {}
+      # tree = JSON.parse(@tree_response.body)
+      resource_children = @tree['children']
+      process_children(resource_children)
+      consolidate_list(@list)
+      @rows = rows_from_list
+      render json: JSON.generate(@rows)
+    end
+  end
 
 
 
@@ -63,16 +84,19 @@ class BoxlistController < ApplicationController
   def process_children(children)
     children.each do |c|
       puts c['record_uri']
-      c_response = @a.get(c['record_uri'], resolve: ['instances'])
-      if c_response.code.to_i == 200
-        c_data = JSON.parse(c_response.body)
-        c_data['instances'].each do |i|
-          process_instance(i)
-        end
+      # c_data = JSONModel::HTTP::get_json(c['record_uri'], resolve: ['instances'])
+      c_data = JSONModel::HTTP::get_json(c['record_uri'])
 
-        if ['has_children']
-          process_children(c['children'])
-        end
+      puts "******"
+      puts c_data.inspect
+      puts "******"
+
+      c_data['instances'].each do |i|
+        process_instance(i)
+      end
+
+      if ['has_children']
+        process_children(c['children'])
       end
     end
   end
@@ -159,9 +183,14 @@ class BoxlistController < ApplicationController
     rows = []
 
     @list.each do |k,v|
+
+      location_ref = k
+      location_data = JSONModel::HTTP::get_json(location_ref)
+      location = location_data['title']
+
       if v['values']
         v['values'].each do |value|
-          rows << { location: k, container: value }
+          rows << { location: location, container: value }
         end
         if v.length > 1
           # ??????
@@ -172,7 +201,7 @@ class BoxlistController < ApplicationController
         v.each do |k1,v1|
           if v1['values']
             v1['values'].each do |value|
-              rows << { location: k, container: value }
+              rows << { location: location, container: value }
             end
             if v1.length > 1
               # ??????
@@ -183,7 +212,7 @@ class BoxlistController < ApplicationController
             v1.each do |k2,v2|
               if v2['values']
                 contents = contents_statement(k2, v2['values'])
-                rows << { location: k, container: k1, contents: contents }
+                rows << { location: location, container: k1, contents: contents }
                 if v2.length > 1
                   # ??????
                 end
@@ -193,7 +222,7 @@ class BoxlistController < ApplicationController
                 v2.each do |k3,v3|
                   if v3['values']
                     contents = contents_statement(k3, v3['values'])
-                    rows << { location: k, container: k2, contents: contents }
+                    rows << { location: location, container: k2, contents: contents }
                     if v3.length > 1
                       # ??????
                     end
