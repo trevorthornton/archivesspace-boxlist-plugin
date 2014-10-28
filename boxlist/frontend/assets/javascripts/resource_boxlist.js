@@ -1,38 +1,34 @@
 $(document).ready(function() {
 
-  var toolbarButtonAppended = false;
+  $.fn.extend({
 
-  attachToolbarButton = function(resource_id) {
-    if (toolbarButtonAppended == false) {
-      var recordToolbar = $('.record-toolbar');
+    addToolbarButton: function() {
 
-      if (recordToolbar.length == 0) {
-        $( document ).ajaxComplete(function() {
-          console.log( "Triggered ajaxComplete handler." );
-          attachToolbarButton(resource_id);
-        });
-      }
+      addBtn = function(resource_id) {
+        if ((toobarBtnAdded == false) || ($('.box-list-btn').length == 0)) {
+          var container = $('.record-toolbar .btn-group.pull-left');
+          var containerLoaded = ($(container).length > 0) ? true : false;
 
-      else {
-        var leftButtons = $(recordToolbar).find('.btn-group.pull-left');
-        if (leftButtons.length == 0) {
-          $( document ).ajaxComplete(function() {
-            console.log( "Triggered ajaxComplete handler." );
-            attachToolbarButton(resource_id);
-          });
-        } else {
-          var boxlistButton = $('<a href="/boxlist/' + resource_id + '" class="btn btn-small">Box list</a>');
-          $(leftButtons).append(boxlistButton);
-          toolbarButtonAppended = true;
+          if (containerLoaded) {
+            var boxlistButton = $('<a href="/boxlist/' + resource_id + '" class="btn btn-small box-list-btn">Box list</a>');
+            $(container).append(boxlistButton);
+            toobarBtnAdded = true;
+          } else {
+            $( document ).ajaxComplete(function() {
+              $(document).addToolbarButton();
+            });
+          }
         }
       }
+
+      if (window.location.pathname.match(/\/resources\/\d+/)) {
+        var resource_id = window.location.pathname.replace(/\/resources\//,'');
+        addBtn(resource_id);
+      }
     }
-  }
+  });
 
-  if (window.location.pathname.match(/\/resources\/\d+/)) {
-    var resource_id = window.location.pathname.replace(/\/resources\//,'');
-    attachToolbarButton(resource_id);
-  }
-
+  var toobarBtnAdded = false;
+  $(document).addToolbarButton();
 
 });
