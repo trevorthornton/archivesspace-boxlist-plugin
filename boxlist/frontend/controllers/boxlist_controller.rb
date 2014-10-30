@@ -8,14 +8,6 @@ class BoxlistController < ApplicationController
     if params[:resource_id]
       @resource_id = params[:resource_id]
       @resource = JSONModel(:resource).find(@resource_id)
-      # @resource_uri = @resource.uri
-      # @tree = JSONModel::HTTP::get_json("/#{@resource_uri}/tree")
-      # @list = {}
-      # # tree = JSON.parse(@tree_response.body)
-      # resource_children = @tree['children']
-      # process_children(resource_children)
-      # consolidate_list(@list)
-      # @rows = rows_from_list
       render
     end
   end
@@ -27,11 +19,11 @@ class BoxlistController < ApplicationController
       @resource_uri = @resource.uri
       @tree = JSONModel::HTTP::get_json("/#{@resource_uri}/tree")
       @list = {}
-      # tree = JSON.parse(@tree_response.body)
       resource_children = @tree['children']
       process_children(resource_children)
       consolidate_list(@list)
       @rows = rows_from_list
+      @rows.sort_by! { |x| x[:container_sort] }
       render json: JSON.generate(@rows)
     end
   end
@@ -59,12 +51,7 @@ class BoxlistController < ApplicationController
         if cont["type_#{index}"]
           type = cont["type_#{index}"]
           indicator = cont["indicator_#{index}"]
-          if n == 0
-            hash_keys << "#{type} #{indicator}"
-          else
-            hash_keys << type
-            hash_keys << indicator
-          end
+          hash_keys << [ type, indicator ]
         end
       end
 
@@ -72,8 +59,10 @@ class BoxlistController < ApplicationController
         @list[l] ||= {}
         list_root = @list[l]
         hash_keys.each do |k|
-          list_root[k] ||= {}
-          list_root = list_root[k]
+          if !k.nil?
+            list_root[k] ||= {}
+            list_root = list_root[k]
+          end
         end
       end
 
@@ -86,11 +75,6 @@ class BoxlistController < ApplicationController
       puts c['record_uri']
       # c_data = JSONModel::HTTP::get_json(c['record_uri'], resolve: ['instances'])
       c_data = JSONModel::HTTP::get_json(c['record_uri'])
-
-      puts "******"
-      puts c_data.inspect
-      puts "******"
-
       c_data['instances'].each do |i|
         process_instance(i)
       end
@@ -113,20 +97,27 @@ class BoxlistController < ApplicationController
       end
     end
     if values
-      list['values'] = values.uniq
+      values.uniq!
+      values.each do |v|
+        if v[1]
+          list[v[0]] ||= { 'values' => [] }
+          list[v[0]]['values'] << v[1]
+        end
+      end
     end
-    sort_hash_by_key(list)
   end
 
 
   def contents_statement(key, values)
     numeric_values = true
+
     values.each do |value|
       if !value.match(/^[\d\-\,\s]+$/)
         numeric_values = false
         break
       end
     end
+
     if numeric_values
       number_part = ''
       clean_values = []
@@ -179,6 +170,7 @@ class BoxlistController < ApplicationController
   end
 
 
+
   def rows_from_list
     rows = []
 
@@ -186,11 +178,11 @@ class BoxlistController < ApplicationController
 
       location_ref = k
       location_data = JSONModel::HTTP::get_json(location_ref)
-      location = location_data['title']
+      location_title = location_data['title']
 
       if v['values']
         v['values'].each do |value|
-          rows << { location: location, container: value }
+          rows << { location: location_title, container: value }
         end
         if v.length > 1
           # ??????
@@ -201,7 +193,7 @@ class BoxlistController < ApplicationController
         v.each do |k1,v1|
           if v1['values']
             v1['values'].each do |value|
-              rows << { location: location, container: value }
+              rows << { location: location_title, container_type: k1, container_value: value }
             end
             if v1.length > 1
               # ??????
@@ -210,9 +202,10 @@ class BoxlistController < ApplicationController
 
             # container level 2
             v1.each do |k2,v2|
+
               if v2['values']
                 contents = contents_statement(k2, v2['values'])
-                rows << { location: location, container: k1, contents: contents }
+                rows << { location: location_title, container_type: k1[0], container_value: k1[1], contents: contents }
                 if v2.length > 1
                   # ??????
                 end
@@ -222,7 +215,7 @@ class BoxlistController < ApplicationController
                 v2.each do |k3,v3|
                   if v3['values']
                     contents = contents_statement(k3, v3['values'])
-                    rows << { location: location, container: k2, contents: contents }
+                    rows << { location: location_title, container_type: k1[0], container_value: k1[1], subcontainer_type: k2[0], subcontainer_value: k2[1], contents: contents }
                     if v3.length > 1
                       # ??????
                     end
@@ -237,21 +230,38 @@ class BoxlistController < ApplicationController
         end
       end
     end
+
+    # Generate container string and sort value
+    values = rows.map { |row| row[:container_value] }.reject { |row| row.nil? }
+    max_value_length = values.max_by { |v| v.length }.length
+
+    rows.each do |row|
+      container_sort = ''
+      if row[:container_type]
+        row[:container] = row[:container_type]
+        row[:container] += row[:container_value] ? " #{row[:container_value]}" : ''
+
+        container_sort << row[:container_type]
+        sort_value = row[:container_value] || ''
+        sort_value.strip.split(/[^A-Za-z0-9]/).each do |v|
+          value_length_diff = max_value_length - v.length
+          value_length_diff.times { |n| container_sort << '0' }
+          container_sort << v
+        end
+        row[:container_sort] = container_sort
+      else
+        row[:container_sort] = ''
+      end
+
+      if row[:subcontainer_type]
+        row[:subcontainer] = row[:subcontainer_type]
+        row[:subcontainer] += row[:subcontainer_value] ? " #{row[:subcontainer_value]}" : ''
+      end
+
+    end
     rows
   end
 
 
-  def sort_hash_by_key(hash)
-    a = hash.sort_by { |k,v| k }
-    new_hash = {}
-    a.each { |aa| new_hash[aa[0]] = aa[1] }
-    hash = new_hash
-    hash.each do |k,v|
-      if v.kind_of? Hash
-        sort_hash_by_key(v)
-      end
-    end
-    hash
-  end
 
 end
