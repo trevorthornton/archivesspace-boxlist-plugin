@@ -1,8 +1,8 @@
 <% if controller.controller_name == 'boxlist' %>
-   <%= javascript_include_tag "#{@base_url}/assets/javascripts/boxlist.js" %>
-   <%= stylesheet_link_tag "#{@base_url}/assets/styles/boxlist.css" %>
+   <%= javascript_include_tag "#{AppConfig[:frontend_prefix]}assets/javascripts/boxlist.js" %>
+   <%= stylesheet_link_tag "#{AppConfig[:frontend_prefix]}assets/styles/boxlist.css" %>
  <% end %>
 
 <% if controller.controller_name == 'resources' %>
-  <%= javascript_include_tag "#{@base_url}/assets/javascripts/resource_boxlist.js" %>
+  <%= javascript_include_tag "#{AppConfig[:frontend_prefix]}assets/javascripts/resource_boxlist.js" %>
 <% end %>

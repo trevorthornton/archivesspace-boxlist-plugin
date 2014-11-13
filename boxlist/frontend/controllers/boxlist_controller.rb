@@ -22,8 +22,12 @@ class BoxlistController < ApplicationController
       resource_children = @tree['children']
       process_children(resource_children)
       consolidate_list(@list)
-      @rows = rows_from_list
-      @rows.sort_by! { |x| x[:container_sort] }
+      if @list.empty?
+        @rows = []
+      else
+        @rows = rows_from_list
+        @rows.sort_by! { |x| x[:container_sort] }
+      end
       render json: JSON.generate(@rows)
     end
   end
